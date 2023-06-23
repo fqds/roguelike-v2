@@ -15,9 +15,9 @@
 body, html { height: 100%; }
 body { background-color: #000000; color: #ffffff; }
 h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin: 0px; }
-.field-box { border: 2px solid #d0d0d0; float: left; }
-.field { position: relative; width: 1024px; height: 640px; }
-.field .tile { position: absolute; width: 50px; height: 50px; background-size: 100%; background-image: url(images/tile-.png); z-index: 5; }
+.field-box { border: 2px solid #d0d0d0; float: left; display: flex; }
+.field { position: relative; }
+.field .tile { position: relative; width: 50px; height: 50px; background-size: 100%; background-image: url(images/tile-.png); z-index: 5; }
 .field .tileW { background-image: url(images/tile-W.png); }
 .field .tileE { background-image: url(images/tile-E.png); z-index: 10; }
 .field .tileP { background-image: url(images/tile-P.png); z-index: 10; }
@@ -32,7 +32,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 	</head>
 	<body>
 		<h1>Игровое поле</h1>
-		<div class="field-box"><div class="field"></div></div>
+		<div class="field-box"></div>
 		<div class="cl"></div>
 		<!--h1>Инвентарь</h1>
 		<div class="inventory-box"><div class="inventory"></div></div-->
@@ -42,17 +42,37 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 				"fieldWidth": 40,
 				"fieldHeight": 24,
 			}
+			
+			const tileDict = {
+				"": "",
+				"W": "tileW",
+				"E": "tileE",
+				"P": "tileP",
+				"HP": "tileHP",
+				"SW": "tileSW",
+			}
 
 			class Map {
 				constructor(options) {
 					this.width = config.fieldWidth
 					this.height = config.fieldHeight
-					this.map = Array.from({length: this.width}, () => Array.from({length: this.height}, () => "w"))
+					this.field = document.getElementsByClassName("field-box")[0]
+					this.map = Array.from({length: this.width}, () => Array.from({length: this.height}, () => "W")) // todo
 				}
 
-				// RenderMap() {
-				// 	todo
-				// }
+				RenderMap() {
+					for (let x = 0; x < this.width; x++) {
+						let newColumn = document.createElement("div")
+						newColumn.className = "field";
+						this.field.appendChild(newColumn)
+
+						for (let y = 0; y < this.height; y++) {
+							let newTyle = document.createElement("div")
+							newTyle.className = "tile " + tileDict[this.map[x][y]];
+							this.field.lastChild.appendChild(newTyle)
+						}
+					}
+				}
 
 				// RenderTyle() {
 				// 	todo
@@ -70,7 +90,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 					return false
 				}
 				
-				IsWall(x, y) { if (this.map[x][y] == "w") { return true } return false }
+				IsWall(x, y) { if (this.map[x][y] == "W") { return true } return false }
 			}
 
 			// var game=new Game();
