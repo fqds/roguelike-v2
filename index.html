@@ -39,8 +39,20 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 
 		<script>
 			const config = {
-				"fieldWidth": 40,
-				"fieldHeight": 24,
+				"field": {
+					"width": 40,
+					"height": 24,
+					"tunnels": {
+						"horizontal": {
+							"minAmount": 3,
+							"maxAmount": 5,
+						},
+						"vertical": {
+							"minAmount": 3,
+							"maxAmount": 5,
+						},
+					},
+				},
 			}
 			
 			const tileDict = {
@@ -54,11 +66,48 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 
 			class Map {
 				constructor(options) {
-					this.width = config.fieldWidth
-					this.height = config.fieldHeight
+					this.width = config.field.width
+					this.height = config.field.height
 					this.field = document.getElementsByClassName("field-box")[0]
-					this.map = Array.from({length: this.width}, () => Array.from({length: this.height}, () => "W")) // todo
 				}
+
+				GenateMap() {
+					this.map = Array.from({length: this.width}, () => Array.from({length: this.height}, () => "W")) // todo
+
+					for (let i = 0; i < GetRandomInt(
+						config.field.tunnels.horizontal.minAmount, 
+						config.field.tunnels.horizontal.maxAmount + 1
+					); i++) {
+						this.GenerateHorizontalTunnel()
+					}
+
+					for (let i = 0; i < GetRandomInt(
+						config.field.tunnels.vertical.minAmount, 
+						config.field.tunnels.vertical.maxAmount + 1
+					); i++) {
+						this.GenerateVerticalTunnel()
+					}
+				}
+
+
+				
+				GenerateHorizontalTunnel() {
+					const x = GetRandomInt(0, this.width)
+					console.log(x)
+					for (let y = 0; y < this.height; y++) {
+						this.ClearTyle(x, y)
+					}
+				}
+
+				GenerateVerticalTunnel() {
+					const y = GetRandomInt(0, this.height)
+					for (let x = 0; x < this.width; x++) {
+						this.ClearTyle(x, y)
+					}
+				}
+				
+				// GenerateRoom() {
+				// }
 
 				RenderMap() {
 					for (let x = 0; x < this.width; x++) {
@@ -93,9 +142,15 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 				IsWall(x, y) { if (this.map[x][y] == "W") { return true } return false }
 			}
 
+			function GetRandomInt(min, max) {
+				return Math.floor(Math.random() * (max - min)) + min;
+			}
+
 			// var game=new Game();
 			// game.init();
 			map = new Map()
+			map.GenateMap()
+			map.RenderMap()
 			console.log(map)
 		</script>
 	</body>
