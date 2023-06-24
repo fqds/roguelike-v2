@@ -60,16 +60,24 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 						"minHeight": 3,
 						"maxHeight": 8,
 					},
-				},
-				"items": {
-					"SW": {
-						"amount": 2,
+					"items": {
+						"SW": {
+							"amount": 2,
+						},
+						"HP": {
+							"amount": 10,
+						}
 					},
-					"HP": {
-						"amount": 10,
-					}
 				},
 			}
+
+			function GetNewItem(itemName) { // todo: сделать лучше
+				switch (itemName) {
+				case "SW": return new Item_SW()
+				case "HP": return new Item_HP()
+				}
+			}
+
 
 			class Item {
 				constructor(options) {
@@ -85,6 +93,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 				constructor(options) {
 					super(options)
 					this.name = "SW"
+					this.tile = "tileSW"
 				}	
 
 				Use() {
@@ -96,6 +105,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 				constructor(options) {
 					super(options)
 					this.name = "HP"
+					this.tile = "tileHP"
 				}	
 				
 				Use() {
@@ -107,18 +117,9 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 				constructor(options) {
 					this.type = "WALL"
 					this.name = "W"
+					this.tile = "tileW"
 				}
 			}
-			
-			const tileDict = {
-				"": "",
-				"W": "tileW",
-				"E": "tileE",
-				"P": "tileP",
-				"HP": "tileHP",
-				"SW": "tileSW",
-			}
-
 			class Map {
 				constructor(options) {
 					this.config = config.field
@@ -126,9 +127,9 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 				}
 
 				GenateMap() { // todo: Разделить методы на приватные и публичные
-					this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => [new Wall()])) // todo: Сделать эту тему красивее
+					this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => [new Wall()])) // todo: Сделать эту строку красивее
 
-					for (let i = 0; i < GetRandomInt(
+					for (let i = 0; i < GetRandomInt( // todo: раскидать по методам
 						this.config.tunnels.horizontal.minAmount, 
 						this.config.tunnels.horizontal.maxAmount
 					); i++) {
@@ -148,6 +149,8 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 					); i++) {
 						this.GenerateRandomRoom()
 					}
+
+					this.GenerateItems()
 				}
 
 				GetRandomFreeCoord() {
@@ -163,7 +166,16 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 					// Можно ли в js вернуть 2 поля, так, чтобы их можно было присвоить двум разным переменным? 
 					// a, b = GetAB()
 				}
-				
+
+				GenerateItems() {
+					for (const [itemName, itemData] of Object.entries(this.config.items)) {
+						for (let i = 0; i < itemData.amount; i++) {
+							const item = GetNewItem(itemName)
+							const xy = this.GetRandomFreeCoord()
+							this.map[xy[0]][xy[1]].push(item)
+						}
+					}
+				}
 				GenerateHorizontalTunnel() {
 					const x = GetRandomInt(0, this.config.width - 1)
 					console.log("built horizontal tunnel with x =", x)
@@ -234,7 +246,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 							newTile.className = "tile"
 							if (this.map[x][y]) {
 								for (let i = 0; i < this.map[x][y].length; i++) {
-									newTile.className += " " + tileDict[this.map[x][y][i].name]
+									newTile.className += " " + this.map[x][y][i].tile
 								} 
 							}
 							this.field.lastChild.appendChild(newTile)
