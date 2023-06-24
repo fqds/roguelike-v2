@@ -52,6 +52,14 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 							"maxAmount": 5,
 						},
 					},
+					"rooms": {
+						"minAmount": 5,
+						"maxAmount": 10,
+						"minWidth": 3,
+						"maxWidth": 8,
+						"minHeight": 3,
+						"maxHeight": 8,
+					},
 				},
 			}
 			
@@ -66,56 +74,103 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 
 			class Map {
 				constructor(options) {
-					this.width = config.field.width
-					this.height = config.field.height
+					this.config = config.field
 					this.field = document.getElementsByClassName("field-box")[0]
 				}
 
 				GenateMap() {
-					this.map = Array.from({length: this.width}, () => Array.from({length: this.height}, () => "W")) // todo
+					this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => "W")) // todo
 
 					for (let i = 0; i < GetRandomInt(
-						config.field.tunnels.horizontal.minAmount, 
-						config.field.tunnels.horizontal.maxAmount + 1
+						this.config.tunnels.horizontal.minAmount, 
+						this.config.tunnels.horizontal.maxAmount
 					); i++) {
 						this.GenerateHorizontalTunnel()
 					}
 
 					for (let i = 0; i < GetRandomInt(
-						config.field.tunnels.vertical.minAmount, 
-						config.field.tunnels.vertical.maxAmount + 1
+						this.config.tunnels.vertical.minAmount, 
+						this.config.tunnels.vertical.maxAmount
 					); i++) {
 						this.GenerateVerticalTunnel()
+					}
+
+					for (let i = 0; i < GetRandomInt(
+						this.config.rooms.minAmount,
+						this.config.rooms.maxAmount
+					); i++) {
+						this.GenerateRandomRoom()
 					}
 				}
 
 
 				
 				GenerateHorizontalTunnel() {
-					const x = GetRandomInt(0, this.width)
-					console.log(x)
-					for (let y = 0; y < this.height; y++) {
+					const x = GetRandomInt(0, this.config.width - 1)
+					console.log("built horizontal tunnel with x =", x)
+					for (let y = 0; y < this.config.height; y++) {
 						this.ClearTyle(x, y)
 					}
 				}
 
 				GenerateVerticalTunnel() {
-					const y = GetRandomInt(0, this.height)
-					for (let x = 0; x < this.width; x++) {
+					const y = GetRandomInt(0, this.config.height - 1)
+					console.log("built vertical tunnel with y =", y)
+					for (let x = 0; x < this.config.width; x++) {
 						this.ClearTyle(x, y)
 					}
 				}
 				
-				// GenerateRoom() {
-				// }
+				GenerateRandomRoom() {
+					let width = 0
+					let height = 0
+					let xOffset = 0
+					let yOffset = 0
+					let isConnected = false
+					while (!isConnected) {
+						width = GetRandomInt(this.config.rooms.minWidth,
+												this.config.rooms.maxWidth)
+						height = GetRandomInt(this.config.rooms.minHeight,
+													this.config.rooms.maxHeight)
+						xOffset = GetRandomInt(0, this.config.width - width - 1)
+						yOffset = GetRandomInt(0, this.config.height - height - 1)
+						
+						for (let x = xOffset; x < xOffset + width; x++) {
+							if ((this.IsTyleExist(x, yOffset - 1) && 
+								!this.IsWall(x, yOffset - 1)) ||
+								this.IsTyleExist(x, yOffset + height) && 
+								!this.IsWall(x, yOffset + height)) {
+								isConnected = true
+								break
+							}
+						}
+						if (isConnected) { break }
+
+						for (let y = yOffset; y < yOffset + height; y++) {
+							if ((this.IsTyleExist(xOffset - 1, y) && 
+								!this.IsWall(xOffset - 1, y)) ||
+								(this.IsTyleExist(xOffset + width, y) && 
+								!this.IsWall(xOffset + width, y))) {
+								isConnected = true
+								break
+							}
+						}
+						console.log(`didn't build room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
+					}
+
+					console.log(`built room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
+					for (let x = xOffset; x < xOffset + width; x++) {
+						for (let y = yOffset; y < yOffset + height; y++) { this.map[x][y] = "" }
+					}
+				}
 
 				RenderMap() {
-					for (let x = 0; x < this.width; x++) {
+					for (let x = 0; x < this.config.width; x++) {
 						let newColumn = document.createElement("div")
 						newColumn.className = "field";
 						this.field.appendChild(newColumn)
 
-						for (let y = 0; y < this.height; y++) {
+						for (let y = 0; y < this.config.height; y++) {
 							let newTyle = document.createElement("div")
 							newTyle.className = "tile " + tileDict[this.map[x][y]];
 							this.field.lastChild.appendChild(newTyle)
@@ -132,8 +187,8 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 				}
 
 				IsTyleExist(x, y) { 
-					if (x >= 0 && x <= this.width && 
-						y >= 0 && y <= this.height) {
+					if (x >= 0 && x < this.config.width && 
+						y >= 0 && y < this.config.height) {
 						return true
 					}
 					return false
@@ -143,7 +198,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 			}
 
 			function GetRandomInt(min, max) {
-				return Math.floor(Math.random() * (max - min)) + min;
+				return Math.floor(Math.random() * (max - min + 1)) + min;
 			}
 
 			// var game=new Game();
