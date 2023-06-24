@@ -61,6 +61,53 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 						"maxHeight": 8,
 					},
 				},
+				"items": {
+					"SW": {
+						"amount": 2,
+					},
+					"HP": {
+						"amount": 10,
+					}
+				},
+			}
+
+			class Item {
+				constructor(options) {
+					this.type = "ITEM"
+				}
+
+				Use() {
+					console.log("Used empty item")
+				}
+			}
+			
+			class Item_SW extends Item {
+				constructor(options) {
+					super(options)
+					this.name = "SW"
+				}	
+
+				Use() {
+					player.IncreaceDamage(3)
+				}
+			}
+			
+			class Item_HP extends Item {
+				constructor(options) {
+					super(options)
+					this.name = "HP"
+				}	
+				
+				Use() {
+					player.IncreaceHP(50)
+				}
+			}
+
+			class Wall {
+				constructor(options) {
+					this.type = "WALL"
+					this.name = "W"
+				}
 			}
 			
 			const tileDict = {
@@ -78,8 +125,8 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 					this.field = document.getElementsByClassName("field-box")[0]
 				}
 
-				GenateMap() {
-					this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => "W")) // todo
+				GenateMap() { // todo: Разделить методы на приватные и публичные
+					this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => [new Wall()])) // todo: Сделать эту тему красивее
 
 					for (let i = 0; i < GetRandomInt(
 						this.config.tunnels.horizontal.minAmount, 
@@ -103,13 +150,25 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 					}
 				}
 
-
+				GetRandomFreeCoord() {
+					let freeCoords = []
+					for (let x = 0; x < this.config.width; x++) { // todo: Сделать функцию, которая будет проходиться по всей карте и выполнять поданый в нее код
+						for (let y = 0; y < this.config.height; y++) {
+							if (this.map[x][y].length == 0) {
+								freeCoords.push([x, y])
+							}
+						}
+					}
+					return freeCoords[GetRandomInt(0, freeCoords.length - 1)] 
+					// Можно ли в js вернуть 2 поля, так, чтобы их можно было присвоить двум разным переменным? 
+					// a, b = GetAB()
+				}
 				
 				GenerateHorizontalTunnel() {
 					const x = GetRandomInt(0, this.config.width - 1)
 					console.log("built horizontal tunnel with x =", x)
 					for (let y = 0; y < this.config.height; y++) {
-						this.ClearTyle(x, y)
+						this.ClearTile(x, y)
 					}
 				}
 
@@ -117,7 +176,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 					const y = GetRandomInt(0, this.config.height - 1)
 					console.log("built vertical tunnel with y =", y)
 					for (let x = 0; x < this.config.width; x++) {
-						this.ClearTyle(x, y)
+						this.ClearTile(x, y)
 					}
 				}
 				
@@ -136,10 +195,10 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 						yOffset = GetRandomInt(0, this.config.height - height)
 						
 						for (let x = xOffset; x < xOffset + width; x++) {
-							if ((this.IsTyleExist(x, yOffset - 1) && 
-								!this.IsWall(x, yOffset - 1)) ||
-								this.IsTyleExist(x, yOffset + height) && 
-								!this.IsWall(x, yOffset + height)) {
+							if ((this.IsTileExist(x, yOffset - 1) && 
+								!this.IsTileWall(x, yOffset - 1)) ||
+								this.IsTileExist(x, yOffset + height) && 
+								!this.IsTileWall(x, yOffset + height)) {
 								isConnected = true
 								break
 							}
@@ -147,10 +206,10 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 						if (isConnected) { break }
 
 						for (let y = yOffset; y < yOffset + height; y++) {
-							if ((this.IsTyleExist(xOffset - 1, y) && 
-								!this.IsWall(xOffset - 1, y)) ||
-								(this.IsTyleExist(xOffset + width, y) && 
-								!this.IsWall(xOffset + width, y))) {
+							if ((this.IsTileExist(xOffset - 1, y) && 
+								!this.IsTileWall(xOffset - 1, y)) ||
+								(this.IsTileExist(xOffset + width, y) && 
+								!this.IsTileWall(xOffset + width, y))) {
 								isConnected = true
 								break
 							}
@@ -160,7 +219,7 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 
 					console.log(`built room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
 					for (let x = xOffset; x < xOffset + width; x++) {
-						for (let y = yOffset; y < yOffset + height; y++) { this.map[x][y] = "" }
+						for (let y = yOffset; y < yOffset + height; y++) { this.map[x][y] = [] }
 					}
 				}
 
@@ -171,36 +230,40 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 						this.field.appendChild(newColumn)
 
 						for (let y = 0; y < this.config.height; y++) {
-							let newTyle = document.createElement("div")
-							newTyle.className = "tile " + tileDict[this.map[x][y]];
-							this.field.lastChild.appendChild(newTyle)
+							let newTile = document.createElement("div") 
+							newTile.className = "tile"
+							if (this.map[x][y]) {
+								for (let i = 0; i < this.map[x][y].length; i++) {
+									newTile.className += " " + tileDict[this.map[x][y][i].name]
+								} 
+							}
+							this.field.lastChild.appendChild(newTile)
 						}
 					}
 				}
 
-				// RenderTyle() {
-				// 	todo
-				// }
-
-				ClearTyle(x, y) {
-					this.map[x][y] = ""
+				ClearTile(x, y) {
+					this.map[x][y] = []
 				}
 
-				IsTyleExist(x, y) { 
+				IsTileExist(x, y) { 
 					if (x >= 0 && x < this.config.width && 
 						y >= 0 && y < this.config.height) {
 						return true
 					}
 					return false
 				}
+
+				IsTileEmpty(x, y) { if (this.map[x][y].length == 0) { return true } return false }
 				
-				IsWall(x, y) { if (this.map[x][y] == "W") { return true } return false }
+				IsTileWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0].type == "WALL") { return true } return false } // todo: предусмотреть расположение сторонних предметов на тайле со стеной
 			}
 
 			function GetRandomInt(min, max) {
 				return Math.floor(Math.random() * (max - min + 1)) + min;
 			}
 
+			// todo: Перекинуть все, находящееся ниже в класс Game
 			// var game=new Game();
 			// game.init();
 			map = new Map()
