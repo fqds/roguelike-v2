@@ -132,8 +132,8 @@ h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin
 												this.config.rooms.maxWidth)
 						height = GetRandomInt(this.config.rooms.minHeight,
 													this.config.rooms.maxHeight)
-						xOffset = GetRandomInt(0, this.config.width - width - 1)
-						yOffset = GetRandomInt(0, this.config.height - height - 1)
+						xOffset = GetRandomInt(0, this.config.width - width)
+						yOffset = GetRandomInt(0, this.config.height - height)
 						
 						for (let x = xOffset; x < xOffset + width; x++) {
 							if ((this.IsTyleExist(x, yOffset - 1) && 
