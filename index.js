@@ -94,7 +94,10 @@ class Player {
 
     IncreaceDamage(damage) { this.damage += damage }
 
-    IncreaceHealth(health) { this.health += health }
+    IncreaceHealth(health) {
+        this.health += health
+        if (this.health > this.maxHealth) { this.health = this.maxHealth }
+    }
 
     RenderPlayer() {
         game.map.map[this.x][this.y].push(this)
@@ -103,7 +106,7 @@ class Player {
 
     UnrenderPlayer() {
         const playerIndex = game.map.map[this.x][this.y].indexOf(this);
-        game.map.map[this.x][this.y].splice(playerIndex)
+        game.map.map[this.x][this.y].splice(playerIndex, 1)
         game.map.ReRenderTile(this.x, this.y)
     }
 
@@ -123,9 +126,20 @@ class Player {
             this.x = x
             this.y = y
             this.RenderPlayer()
+            console.log(`player moved to x = ${x}, y = ${y}`)
         }
+        this.UseItemOnTile()
     }
 
+    UseItemOnTile () {
+        for (let i = 0; i < game.map.map[this.x][this.y].length; i++) {
+            if (game.map.map[this.x][this.y][i].type == "ITEM") {
+                game.map.map[this.x][this.y][i].Use(this)
+                game.map.RemoveFromTile(this.x, this.y, i)
+            }
+        }
+    }
+    
     init() {
         this.RenderPlayer()
     }
@@ -287,6 +301,12 @@ class Map { // todo: добавить синглтон
         }
         console.log(`built room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
 
+    }
+
+    RemoveFromTile(x, y, i) {
+        delete this.map[x][y][i] // todo: узнать, как работает сборщик мусора в js
+        this.map[x][y].splice(i, 1)
+        this.ReRenderTile(x, y)
     }
 
     ReRenderTile(x, y) {
