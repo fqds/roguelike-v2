@@ -81,7 +81,54 @@ class Wall {
         this.tile = "tileW"
     }
 }
-class Map {
+
+class Player {
+    constructor(options) {
+        this.x = options.x
+        this.y = options.y
+        this.map = options.map
+        this.maxHP = 100
+        this.HP = 100
+        this.Damage = 5
+        this.tile = "tileP"
+    }
+
+    RenderPlayer() {
+        this.map.map[this.x][this.y].push(this)
+        this.map.ReRenderTile(this.x, this.y)
+    }
+
+    UnrenderPlayer() {
+        const playerIndex = this.map.map[this.x][this.y].indexOf(this);
+        this.map.map[this.x][this.y].splice(playerIndex)
+        this.map.ReRenderTile(this.x, this.y)
+    }
+
+    IsPlayerCanPassTo(x, y) {
+        if (this.map.IsTileExist(x, y) &&
+            !this.map.IsTileOnlyWall(x, y)) {
+            return true
+        }
+        return false
+    }
+
+    MoveByVector(xVector, yVector) {
+        const x = this.x + xVector
+        const y = this.y + yVector
+        if (this.IsPlayerCanPassTo(x, y)) {
+            this.UnrenderPlayer()
+            this.x = x
+            this.y = y
+            this.RenderPlayer()
+        }
+    }
+
+    init() {
+        this.RenderPlayer()
+    }
+}
+
+class Map { // todo: добавить синглтон
     constructor(options) {
         this.config = config.field
         this.field = document.getElementsByClassName("field-box")[0]
@@ -187,18 +234,18 @@ class Map {
     IsRoomConnected(xOffset, yOffset, width, height) {
         for (let x = xOffset; x < xOffset + width; x++) {
             if ((this.IsTileExist(x, yOffset - 1) && 
-                !this.IsTileWall(x, yOffset - 1)) ||
+                !this.IsTileOnlyWall(x, yOffset - 1)) ||
                 this.IsTileExist(x, yOffset + height) && 
-                !this.IsTileWall(x, yOffset + height)) {
+                !this.IsTileOnlyWall(x, yOffset + height)) {
                 return true
             }
         }
 
         for (let y = yOffset; y < yOffset + height; y++) {
             if ((this.IsTileExist(xOffset - 1, y) && 
-                !this.IsTileWall(xOffset - 1, y)) ||
+                !this.IsTileOnlyWall(xOffset - 1, y)) ||
                 (this.IsTileExist(xOffset + width, y) && 
-                !this.IsTileWall(xOffset + width, y))) {
+                !this.IsTileOnlyWall(xOffset + width, y))) {
                 return true
             }
         }
@@ -214,20 +261,28 @@ class Map {
 
     }
 
+    ReRenderTile(x, y) {
+        let tile = this.field.children[x].children[y]
+        tile.className = this.GetClassName(x, y)
+    }
+
+    GetClassName(x, y) {
+        let className = "tile"
+        for (let i = 0; i < this.map[x][y].length; i++) {
+            className += " " + this.map[x][y][i].tile
+        }
+        return className
+    }
+    
     RenderMap() {
         for (let x = 0; x < this.config.width; x++) {
             let newColumn = document.createElement("div")
-            newColumn.className = "field";
+            newColumn.className = "field"
             this.field.appendChild(newColumn)
 
             for (let y = 0; y < this.config.height; y++) {
                 let newTile = document.createElement("div") 
-                newTile.className = "tile"
-                if (this.map[x][y]) {
-                    for (let i = 0; i < this.map[x][y].length; i++) {
-                        newTile.className += " " + this.map[x][y][i].tile
-                    } 
-                }
+                newTile.className = this.GetClassName(x, y)
                 this.field.lastChild.appendChild(newTile)
             }
         }
@@ -247,7 +302,12 @@ class Map {
 
     IsTileEmpty(x, y) { if (this.map[x][y].length == 0) { return true } return false }
     
-    IsTileWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0].type == "WALL") { return true } return false } // todo: предусмотреть расположение сторонних предметов на тайле со стеной
+    IsTileOnlyWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0].type == "WALL") { return true } return false }
+
+    init() {
+        this.GenateMap()
+        this.RenderMap()
+    }
 }
 
 function GetRandomInt(min, max) {
@@ -257,8 +317,18 @@ function GetRandomInt(min, max) {
 class Game {
     constructor(options) {
         this.map = new Map()
-        this.map.GenateMap()
-        this.map.RenderMap()
+        this.map.init()
+
+        const xy = this.map.GetRandomFreeCoord()
+        this.player = new Player({
+            x: xy[0],
+            y: xy[1],
+            map: this.map,
+
+        })
+        this.player.init()
+
         console.log(this.map)
+        console.log(this.player)
     }
 }
