@@ -90,7 +90,29 @@ class Map {
     GenateMap() { // todo: Разделить методы на приватные и публичные
         this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => [new Wall()])) // todo: Сделать эту строку красивее
 
-        for (let i = 0; i < GetRandomInt( // todo: раскидать по методам
+        this.GenerateTunnels()
+
+        this.GenerateRandomRooms()
+
+        this.GenerateItems()
+    }
+
+    GetRandomFreeCoord() {
+        let freeCoords = []
+        for (let x = 0; x < this.config.width; x++) {
+            for (let y = 0; y < this.config.height; y++) {
+                if (this.map[x][y].length == 0) {
+                    freeCoords.push([x, y])
+                }
+            }
+        }
+        return freeCoords[GetRandomInt(0, freeCoords.length - 1)] 
+        // Можно ли в js вернуть 2 поля, так, чтобы их можно было присвоить двум разным переменным? 
+        // a, b = GetAB()
+    }
+
+    GenerateTunnels() {
+        for (let i = 0; i < GetRandomInt(
             this.config.tunnels.horizontal.minAmount, 
             this.config.tunnels.horizontal.maxAmount
         ); i++) {
@@ -103,53 +125,45 @@ class Map {
         ); i++) {
             this.GenerateVerticalTunnel()
         }
-
-        for (let i = 0; i < GetRandomInt(
-            this.config.rooms.minAmount,
-            this.config.rooms.maxAmount
-        ); i++) {
-            this.GenerateRandomRoom()
-        }
-
-        this.GenerateItems()
-    }
-
-    GetRandomFreeCoord() {
-        let freeCoords = []
-        for (let x = 0; x < this.config.width; x++) { // todo: Сделать функцию, которая будет проходиться по всей карте и выполнять поданый в нее код
-            for (let y = 0; y < this.config.height; y++) {
-                if (this.map[x][y].length == 0) {
-                    freeCoords.push([x, y])
-                }
-            }
-        }
-        return freeCoords[GetRandomInt(0, freeCoords.length - 1)] 
-        // Можно ли в js вернуть 2 поля, так, чтобы их можно было присвоить двум разным переменным? 
-        // a, b = GetAB()
     }
 
     GenerateItems() {
         for (const [itemName, itemData] of Object.entries(this.config.items)) {
             for (let i = 0; i < itemData.amount; i++) {
-                const item = GetNewItem(itemName)
                 const xy = this.GetRandomFreeCoord()
-                this.map[xy[0]][xy[1]].push(item)
+                this.SetItem(itemName, xy[0], xy[1])
             }
         }
     }
+
+    SetItem(itemName, x, y) {
+        const item = GetNewItem(itemName)
+        this.map[x][y].push(item)
+        console.log(`Item ${ itemName } placed at x = ${x}, y = ${y}`)
+    }
+    
     GenerateHorizontalTunnel() {
         const x = GetRandomInt(0, this.config.width - 1)
-        console.log("built horizontal tunnel with x =", x)
         for (let y = 0; y < this.config.height; y++) {
             this.ClearTile(x, y)
         }
+        console.log("built horizontal tunnel with x =", x)
     }
 
     GenerateVerticalTunnel() {
         const y = GetRandomInt(0, this.config.height - 1)
-        console.log("built vertical tunnel with y =", y)
         for (let x = 0; x < this.config.width; x++) {
             this.ClearTile(x, y)
+        }
+        console.log("built vertical tunnel with y =", y)
+    }
+
+    GenerateRandomRooms() {
+        for (let i = 0; i < GetRandomInt(
+            this.config.rooms.minAmount,
+            this.config.rooms.maxAmount
+        ); i++) {
+            this.GenerateRandomRoom()
         }
     }
     
@@ -158,42 +172,46 @@ class Map {
         let height = 0
         let xOffset = 0
         let yOffset = 0
-        let isConnected = false
-        while (!isConnected) {
+        while (true) {
             width = GetRandomInt(this.config.rooms.minWidth,
                                     this.config.rooms.maxWidth)
             height = GetRandomInt(this.config.rooms.minHeight,
                                         this.config.rooms.maxHeight)
             xOffset = GetRandomInt(0, this.config.width - width)
             yOffset = GetRandomInt(0, this.config.height - height)
-            
-            for (let x = xOffset; x < xOffset + width; x++) {
-                if ((this.IsTileExist(x, yOffset - 1) && 
-                    !this.IsTileWall(x, yOffset - 1)) ||
-                    this.IsTileExist(x, yOffset + height) && 
-                    !this.IsTileWall(x, yOffset + height)) {
-                    isConnected = true
-                    break
-                }
-            }
-            if (isConnected) { break }
+            if (this. IsRoomConnected(xOffset, yOffset, width, height)) { break }
+        }
+        this.SetRoom(xOffset, yOffset, width, height)
+    }
 
-            for (let y = yOffset; y < yOffset + height; y++) {
-                if ((this.IsTileExist(xOffset - 1, y) && 
-                    !this.IsTileWall(xOffset - 1, y)) ||
-                    (this.IsTileExist(xOffset + width, y) && 
-                    !this.IsTileWall(xOffset + width, y))) {
-                    isConnected = true
-                    break
-                }
+    IsRoomConnected(xOffset, yOffset, width, height) {
+        for (let x = xOffset; x < xOffset + width; x++) {
+            if ((this.IsTileExist(x, yOffset - 1) && 
+                !this.IsTileWall(x, yOffset - 1)) ||
+                this.IsTileExist(x, yOffset + height) && 
+                !this.IsTileWall(x, yOffset + height)) {
+                return true
             }
-            console.log(`didn't build room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
         }
 
-        console.log(`built room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
+        for (let y = yOffset; y < yOffset + height; y++) {
+            if ((this.IsTileExist(xOffset - 1, y) && 
+                !this.IsTileWall(xOffset - 1, y)) ||
+                (this.IsTileExist(xOffset + width, y) && 
+                !this.IsTileWall(xOffset + width, y))) {
+                return true
+            }
+        }
+        console.log(`unconnected room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
+        return false
+    }
+
+    SetRoom(xOffset, yOffset, width, height) {
         for (let x = xOffset; x < xOffset + width; x++) {
             for (let y = yOffset; y < yOffset + height; y++) { this.map[x][y] = [] }
         }
+        console.log(`built room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
+
     }
 
     RenderMap() {
@@ -234,4 +252,13 @@ class Map {
 
 function GetRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+class Game {
+    constructor(options) {
+        this.map = new Map()
+        this.map.GenateMap()
+        this.map.RenderMap()
+        console.log(this.map)
+    }
 }
