@@ -4,8 +4,8 @@ const config = {
         "height": 24,
         "tunnels": {
             "horizontal": {
-                "minAmount": 130,
-                "maxAmount": 1666,
+                "minAmount": 3,
+                "maxAmount": 5,
             },
             "vertical": {
                 "minAmount": 3,
@@ -22,7 +22,7 @@ const config = {
         },
         "items": {
             "SW": {
-                "amount": 299,
+                "amount": 2,
             },
             "HP": {
                 "amount": 10,
@@ -57,8 +57,8 @@ class Item_SW extends Item {
         this.tile = "tileSW"
     }	
 
-    Use() {
-        game.player.IncreaceDamage(3)
+    Use(player) {
+        player.IncreaceDamage(3)
     }
 }
 
@@ -69,8 +69,8 @@ class Item_HP extends Item {
         this.tile = "tileHP"
     }	
     
-    Use() {
-        game.player.IncreaceHealth(50)
+    Use(player) {
+        player.IncreaceHealth(50)
     }
 }
 
@@ -126,17 +126,34 @@ class Player {
         }
     }
 
-    KeypressEvents() {
-        
-        document.addEventListener("keypress", function(event) {
-            console.log(event.code)
-          })
-    }
-
     init() {
         this.RenderPlayer()
-        this.KeypressEvents()
     }
+}
+
+function KeypressEvents(player) {
+    let keyDown = {
+        "KeyW": false,
+        "KeyA": false,
+        "KeyS": false,
+        "KeyD": false,
+        "Space": false,
+    }
+
+    document.addEventListener("keydown", function(event) {
+        if (keyDown[event.code] == false) {
+            keyDown[event.code] = true
+            switch(event.code) {
+            case "KeyW": player.MoveByVector(0, -1); break
+            case "KeyA": player.MoveByVector(-1, 0); break
+            case "KeyS": player.MoveByVector(0, 1); break
+            case "KeyD": player.MoveByVector(1, 0); break
+            }
+        }
+    })
+    document.addEventListener("keyup", function(event) {
+        keyDown[event.code] = false
+    })
 }
 
 class Map { // todo: добавить синглтон
@@ -329,7 +346,6 @@ class Game {
     constructor(options) {
         this.map = new Map()
         this.map.init()
-
         console.log(this.map)
     }
 
@@ -341,5 +357,6 @@ class Game {
         })
         this.player.init()
         console.log(this.player)
+        KeypressEvents(this.player)
     }
 }
