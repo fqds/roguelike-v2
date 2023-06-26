@@ -4,8 +4,8 @@ const config = {
         "height": 24,
         "tunnels": {
             "horizontal": {
-                "minAmount": 3,
-                "maxAmount": 5,
+                "minAmount": 130,
+                "maxAmount": 1666,
             },
             "vertical": {
                 "minAmount": 3,
@@ -22,7 +22,7 @@ const config = {
         },
         "items": {
             "SW": {
-                "amount": 2,
+                "amount": 299,
             },
             "HP": {
                 "amount": 10,
@@ -58,7 +58,7 @@ class Item_SW extends Item {
     }	
 
     Use() {
-        player.IncreaceDamage(3)
+        game.player.IncreaceDamage(3)
     }
 }
 
@@ -70,7 +70,7 @@ class Item_HP extends Item {
     }	
     
     Use() {
-        player.IncreaceHP(50)
+        game.player.IncreaceHealth(50)
     }
 }
 
@@ -86,27 +86,30 @@ class Player {
     constructor(options) {
         this.x = options.x
         this.y = options.y
-        this.map = options.map
-        this.maxHP = 100
-        this.HP = 100
-        this.Damage = 5
+        this.maxHealth = 100
+        this.health = 100
+        this.damage = 5
         this.tile = "tileP"
     }
 
+    IncreaceDamage(damage) { this.damage += damage }
+
+    IncreaceHealth(health) { this.health += health }
+
     RenderPlayer() {
-        this.map.map[this.x][this.y].push(this)
-        this.map.ReRenderTile(this.x, this.y)
+        game.map.map[this.x][this.y].push(this)
+        game.map.ReRenderTile(this.x, this.y)
     }
 
     UnrenderPlayer() {
-        const playerIndex = this.map.map[this.x][this.y].indexOf(this);
-        this.map.map[this.x][this.y].splice(playerIndex)
-        this.map.ReRenderTile(this.x, this.y)
+        const playerIndex = game.map.map[this.x][this.y].indexOf(this);
+        game.map.map[this.x][this.y].splice(playerIndex)
+        game.map.ReRenderTile(this.x, this.y)
     }
 
     IsPlayerCanPassTo(x, y) {
-        if (this.map.IsTileExist(x, y) &&
-            !this.map.IsTileOnlyWall(x, y)) {
+        if (game.map.IsTileExist(x, y) &&
+            !game.map.IsTileOnlyWall(x, y)) {
             return true
         }
         return false
@@ -123,8 +126,16 @@ class Player {
         }
     }
 
+    KeypressEvents() {
+        
+        document.addEventListener("keypress", function(event) {
+            console.log(event.code)
+          })
+    }
+
     init() {
         this.RenderPlayer()
+        this.KeypressEvents()
     }
 }
 
@@ -134,7 +145,7 @@ class Map { // todo: добавить синглтон
         this.field = document.getElementsByClassName("field-box")[0]
     }
 
-    GenateMap() { // todo: Разделить методы на приватные и публичные
+    GenateMap() { // todo: Разделить методы на приватные и публичные, поработать над конвенцией
         this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => [new Wall()])) // todo: Сделать эту строку красивее
 
         this.GenerateTunnels()
@@ -186,7 +197,7 @@ class Map { // todo: добавить синглтон
     SetItem(itemName, x, y) {
         const item = GetNewItem(itemName)
         this.map[x][y].push(item)
-        console.log(`Item ${ itemName } placed at x = ${x}, y = ${y}`)
+        console.log(`Item ${itemName} placed at x = ${x}, y = ${y}`)
     }
     
     GenerateHorizontalTunnel() {
@@ -319,16 +330,16 @@ class Game {
         this.map = new Map()
         this.map.init()
 
+        console.log(this.map)
+    }
+
+    init() {
         const xy = this.map.GetRandomFreeCoord()
         this.player = new Player({
             x: xy[0],
             y: xy[1],
-            map: this.map,
-
         })
         this.player.init()
-
-        console.log(this.map)
         console.log(this.player)
     }
 }
