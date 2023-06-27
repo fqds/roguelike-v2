@@ -98,22 +98,15 @@ class Enemy {
         this.type = "ENEMY"
         this.x = options.x
         this.y = options.y
-    }
-}
-
-class Enemy_E extends Enemy {
-    constructor(options) {
-        super(options)
-        this.maxHealth = 100
-        this.health = 100
-        this.damage = 30
-        this.tile = "tileE"
+        this.DelayAfterAtack = 1000
+        this.DelayAfterMoveToPlayer = 700
+        this.DelayAfterRandomMove = 1500
     }
 
     CanPassTo(x, y) {
         if (game.map.IsTileExist(x, y) &&
             !game.map.IsTileOnlyWall(x, y) &&
-            !game.map.IsEnemyOnTyle(x, y)) {
+            !game.map.GetEnemyOnTyle(x, y)) {
             return true
         }
         return false
@@ -154,13 +147,37 @@ class Enemy_E extends Enemy {
         this.MoveTo(moveTo[moveIndex][0], moveTo[moveIndex][1])
     }
 
+    AtackPlayers(players) {
+        for (let i = 0; i < players.length; i++) {
+            players[i].GetDamage(this.damage)
+        }
+    }
+
+    GetDamage(damage) {
+        this.health -= damage
+        console.log(`Enemy got ${damage} damage. Current health is ${this.health}`)
+        this.DieIfNoHealth()
+    }
+
+    IsDead() {
+        if (this.health <= 0) { return true } 
+        return false
+    }
+
+    DieIfNoHealth() {
+        if (this.IsDead()) {
+            this.Unrender()
+            delete this
+        }
+    }
+
     PlayersInRange(range) {
         let players = []
         for (let x = this.x - range; x <= this.x + range; x++) {
             for (let y = this.y - range; y <= this.y + range; y++) {
                 const player = game.map.GetPlayerOnTyle(x, y)
                 if (player) {
-                    players.push(game.map.GetPlayerOnTyle(x, y))
+                    players.push(player)
                 }
             }
         }
@@ -168,20 +185,21 @@ class Enemy_E extends Enemy {
     }
 
     Action() {
-        let players = this.PlayersInRange(1)
-        if (players.length != 0) {
-            console.log("Враг атакует героя")
-            this.DelayTillAction(1000)
-        } else {
-            players = this.PlayersInRange(5) 
+        if (!this.IsDead()) {
+            let players = this.PlayersInRange(1)    
             if (players.length != 0) {
-                console.log("Враг видит героя")
-                this.DelayTillAction(700)
-            }
-            else {
-                console.log("Враг ищет героя")
-                this.RandomMove()
-                this.DelayTillAction(1500)
+                this.AtackPlayers(players)
+                this.DelayTillAction(this.DelayAfterAtack)
+            } else {
+                players = this.PlayersInRange(5) 
+                if (players.length != 0) {
+                    console.log("Враг видит героя")
+                    this.DelayTillAction(this.DelayAfterMoveToPlayer)
+                }
+                else {
+                    this.RandomMove()
+                    this.DelayTillAction(this.DelayAfterRandomMove)
+                }
             }
         }
     }
@@ -197,6 +215,16 @@ class Enemy_E extends Enemy {
     }
 }
 
+class Enemy_E extends Enemy {
+    constructor(options) {
+        super(options)
+        this.maxHealth = 100
+        this.health = 100
+        this.damage = 30
+        this.tile = "tileE"
+    }
+}
+
 class Player {
     constructor(options) {
         this.x = options.x
@@ -206,6 +234,47 @@ class Player {
         this.damage = 25
         this.type = "PLAYER"
         this.tile = "tileP"
+        this.keyDown = {
+            "KeyW": false,
+            "KeyA": false,
+            "KeyS": false,
+            "KeyD": false,
+            "Space": false,
+        }
+    }
+
+    AtackAround() {
+        let enemies = this.GetEnemiesAround()
+        for (let i = 0; i < enemies.length; i++) {
+            enemies[i].GetDamage(this.damage)
+        }
+    }
+
+    GetEnemiesAround() {
+        let enemies = []
+        for (let x = this.x - 1; x <= this.x + 1; x++) {
+            for (let y = this.y - 1; y <= this.y + 1; y++) {
+                const enemy = game.map.GetEnemyOnTyle(x, y)
+                if (enemy) {
+                    enemies.push(enemy)
+                }
+            }
+        }
+        return enemies
+    }
+
+    GetDamage(damage) {
+        this.health -= damage
+        console.log(`Player got ${damage} damage. Current health is ${this.health}`)
+        this.DieIfNoHealth()
+    }
+
+    DieIfNoHealth() {
+        if (this.health <= 0) {
+            this.Unrender()
+            this.DownKeypressEvents()
+            delete this
+        }
     }
 
     IncreaceDamage(damage) { this.damage += damage }
@@ -228,7 +297,8 @@ class Player {
 
     CanPassTo(x, y) {
         if (game.map.IsTileExist(x, y) &&
-            !game.map.IsTileOnlyWall(x, y)) {
+            !game.map.IsTileOnlyWall(x, y) &&
+            !game.map.GetEnemyOnTyle(x, y)) {
             return true
         }
         return false
@@ -256,34 +326,40 @@ class Player {
         }
     }
 
-    init() {
-        this.Render()
-    }
-}
+    keydownEvents = (event) => (this.KeydownEvents(event))
+    keyupEvents = (event) => (this.KeyupEvents(event))
 
-function KeypressEvents(player) {
-    let keyDown = {
-        "KeyW": false,
-        "KeyA": false,
-        "KeyS": false,
-        "KeyD": false,
-        "Space": false,
+    UpKeypressEvents() {
+        document.addEventListener("keydown", this.keydownEvents)
+        document.addEventListener("keyup", this.keyupEvents)
     }
 
-    document.addEventListener("keydown", function(event) {
-        if (keyDown[event.code] == false) {
-            keyDown[event.code] = true
+    DownKeypressEvents() {
+        document.removeEventListener("keydown", this.keydownEvents)
+        document.removeEventListener("keyup", this.keyupEvents)
+    }
+
+    KeydownEvents(event) {
+        if (this.keyDown[event.code] == false) {
+            this.keyDown[event.code] = true
             switch(event.code) {
-            case "KeyW": player.MoveByVector(0, -1); break
-            case "KeyA": player.MoveByVector(-1, 0); break
-            case "KeyS": player.MoveByVector(0, 1); break
-            case "KeyD": player.MoveByVector(1, 0); break
+            case "KeyW": this.MoveByVector(0, -1); break
+            case "KeyA": this.MoveByVector(-1, 0); break
+            case "KeyS": this.MoveByVector(0, 1); break
+            case "KeyD": this.MoveByVector(1, 0); break
+            case "Space": this.AtackAround(); break
             }
         }
-    })
-    document.addEventListener("keyup", function(event) {
-        keyDown[event.code] = false
-    })
+    }
+
+    KeyupEvents(event) {
+        this.keyDown[event.code] = false
+    }
+
+    init() {
+        this.Render()
+        this.UpKeypressEvents()
+    }
 }
 
 class Map { // todo: добавить синглтон
@@ -491,10 +567,13 @@ class Map { // todo: добавить синглтон
 
     IsTileOnlyWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0].type == "WALL") { return true } return false }
 
-    IsEnemyOnTyle(x, y) {
+    GetEnemyOnTyle(x, y) {
+        if (!this.IsTileExist(x, y)) {
+            return false
+        }
         for (let i = 0; i < this.map[x][y].length; i++) {
-            if (this.IsTileExist() && this.map[x][y][i].type == "ENEMY") {
-                return true
+            if (this.map[x][y][i].type == "ENEMY") {
+                return this.map[x][y][i]
             }
         }
         return false
@@ -531,7 +610,7 @@ function shuffle(array) {
         array[randomIndex], array[currentIndex]]
     }
     return array
-  }
+}
 
 class Game {
     constructor(options) {
@@ -548,6 +627,5 @@ class Game {
         })
         this.player.init()
         console.log(this.player)
-        KeypressEvents(this.player)
     }
 }
