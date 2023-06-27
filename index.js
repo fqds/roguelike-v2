@@ -28,6 +28,11 @@ const config = {
                 "amount": 10,
             }
         },
+        "enemies": {
+            "E": {
+                "amount": 10,
+            },
+        },
     },
 }
 
@@ -35,6 +40,12 @@ function GetNewItem(itemName) { // todo: сделать лучше
     switch (itemName) {
     case "SW": return new Item_SW()
     case "HP": return new Item_HP()
+    }
+}
+
+function GetNewEnemy(enemyName, options) {
+    switch (enemyName) {
+    case "E": return new Enemy_E(options)
     }
 }
 
@@ -55,10 +66,10 @@ class Item_SW extends Item {
         super(options)
         this.name = "SW"
         this.tile = "tileSW"
-    }	
+    }
 
     Use(player) {
-        player.IncreaceDamage(3)
+        player.IncreaceDamage(15)
     }
 }
 
@@ -82,13 +93,118 @@ class Wall {
     }
 }
 
+class Enemy {
+    constructor(options) {
+        this.type = "ENEMY"
+        this.x = options.x
+        this.y = options.y
+    }
+}
+
+class Enemy_E extends Enemy {
+    constructor(options) {
+        super(options)
+        this.maxHealth = 100
+        this.health = 100
+        this.damage = 30
+        this.tile = "tileE"
+    }
+
+    CanPassTo(x, y) {
+        if (game.map.IsTileExist(x, y) &&
+            !game.map.IsTileOnlyWall(x, y) &&
+            !game.map.IsEnemyOnTyle(x, y)) {
+            return true
+        }
+        return false
+    }
+
+    Unrender() {
+        const enemyIndex = game.map.map[this.x][this.y].indexOf(this)
+        game.map.map[this.x][this.y].splice(enemyIndex, 1)
+        game.map.ReRenderTile(this.x, this.y)
+
+    }
+
+    Render() {
+        game.map.map[this.x][this.y].push(this)
+        game.map.ReRenderTile(this.x, this.y)
+    }
+
+    MoveTo(x, y) {
+        this.Unrender()
+        this.x = x
+        this.y = y
+        this.Render()
+    }
+
+    RandomMove() {
+        let moveTo = shuffle([[this.x, this.y - 1],
+                              [this.x - 1, this.y],
+                              [this.x, this.y + 1],
+                              [this.x + 1, this.y]])
+
+        let moveIndex = 0
+        for (; moveIndex < 4; moveIndex++) {
+            if (this.CanPassTo(moveTo[moveIndex][0], moveTo[moveIndex][1])) {
+                break
+            }
+        }
+
+        this.MoveTo(moveTo[moveIndex][0], moveTo[moveIndex][1])
+    }
+
+    PlayersInRange(range) {
+        let players = []
+        for (let x = this.x - range; x <= this.x + range; x++) {
+            for (let y = this.y - range; y <= this.y + range; y++) {
+                const player = game.map.GetPlayerOnTyle(x, y)
+                if (player) {
+                    players.push(game.map.GetPlayerOnTyle(x, y))
+                }
+            }
+        }
+        return players
+    }
+
+    Action() {
+        let players = this.PlayersInRange(1)
+        if (players.length != 0) {
+            console.log("Враг атакует героя")
+            this.DelayTillAction(1000)
+        } else {
+            players = this.PlayersInRange(5) 
+            if (players.length != 0) {
+                console.log("Враг видит героя")
+                this.DelayTillAction(700)
+            }
+            else {
+                console.log("Враг ищет героя")
+                this.RandomMove()
+                this.DelayTillAction(1500)
+            }
+        }
+    }
+
+    DelayTillAction(ms) {
+        return new Promise(r => setTimeout(() => r(), ms)).then(() => {
+            this.Action()
+        })
+    }
+
+    init() {
+        this.DelayTillAction(1000)
+    }
+}
+
 class Player {
     constructor(options) {
         this.x = options.x
         this.y = options.y
         this.maxHealth = 100
         this.health = 100
-        this.damage = 5
+        this.damage = 25
+        this.type = "PLAYER"
         this.tile = "tileP"
     }
 
@@ -99,18 +215,18 @@ class Player {
         if (this.health > this.maxHealth) { this.health = this.maxHealth }
     }
 
-    RenderPlayer() {
+    Render() { // todo: добавить хп бары
         game.map.map[this.x][this.y].push(this)
         game.map.ReRenderTile(this.x, this.y)
     }
 
-    UnrenderPlayer() {
-        const playerIndex = game.map.map[this.x][this.y].indexOf(this);
+    Unrender() {
+        const playerIndex = game.map.map[this.x][this.y].indexOf(this)
         game.map.map[this.x][this.y].splice(playerIndex, 1)
         game.map.ReRenderTile(this.x, this.y)
     }
 
-    IsPlayerCanPassTo(x, y) {
+    CanPassTo(x, y) {
         if (game.map.IsTileExist(x, y) &&
             !game.map.IsTileOnlyWall(x, y)) {
             return true
@@ -121,27 +237,27 @@ class Player {
     MoveByVector(xVector, yVector) {
         const x = this.x + xVector
         const y = this.y + yVector
-        if (this.IsPlayerCanPassTo(x, y)) {
-            this.UnrenderPlayer()
+        if (this.CanPassTo(x, y)) {
+            this.Unrender()
             this.x = x
             this.y = y
-            this.RenderPlayer()
+            this.Render()
             console.log(`player moved to x = ${x}, y = ${y}`)
         }
         this.UseItemOnTile()
     }
 
-    UseItemOnTile () {
-        for (let i = 0; i < game.map.map[this.x][this.y].length; i++) {
+    UseItemOnTile() {
+        for (let i = 0; i < game.map.map[this.x][this.y].length; i++) { // todo: заменить на while
             if (game.map.map[this.x][this.y][i].type == "ITEM") {
                 game.map.map[this.x][this.y][i].Use(this)
                 game.map.RemoveFromTile(this.x, this.y, i)
             }
         }
     }
-    
+
     init() {
-        this.RenderPlayer()
+        this.Render()
     }
 }
 
@@ -184,6 +300,8 @@ class Map { // todo: добавить синглтон
         this.GenerateRandomRooms()
 
         this.GenerateItems()
+
+        this.GenerateEnemies()
     }
 
     GetRandomFreeCoord() {
@@ -230,7 +348,28 @@ class Map { // todo: добавить синглтон
         this.map[x][y].push(item)
         console.log(`Item ${itemName} placed at x = ${x}, y = ${y}`)
     }
-    
+
+    GenerateEnemies() {
+        for (const [enemyName, enemyData] of Object.entries(this.config.enemies)) {
+            for (let i = 0; i < enemyData.amount; i++) {
+                const xy = this.GetRandomFreeCoord()
+                this.SetEnemy(enemyName, xy[0], xy[1])
+            }
+        }
+    }
+
+    SetEnemy(enemyName, x, y) {
+        const options = {
+            "x": x,
+            "y": y,
+        }
+
+        const enemy = GetNewEnemy(enemyName, options)
+        this.map[x][y].push(enemy)
+        enemy.init()
+        console.log(`Enemy ${enemyName} placed at x = ${x}, y = ${y}`)
+    }
+
     GenerateHorizontalTunnel() {
         const x = GetRandomInt(0, this.config.width - 1)
         for (let y = 0; y < this.config.height; y++) {
@@ -349,8 +488,29 @@ class Map { // todo: добавить синглтон
     }
 
     IsTileEmpty(x, y) { if (this.map[x][y].length == 0) { return true } return false }
-    
+
     IsTileOnlyWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0].type == "WALL") { return true } return false }
+
+    IsEnemyOnTyle(x, y) {
+        for (let i = 0; i < this.map[x][y].length; i++) {
+            if (this.IsTileExist() && this.map[x][y][i].type == "ENEMY") {
+                return true
+            }
+        }
+        return false
+    }
+
+    GetPlayerOnTyle(x, y) {
+        if (!this.IsTileExist(x, y)) {
+            return false
+        }
+        for (let i = 0; i < this.map[x][y].length; i++) {
+            if (this.map[x][y][i].type == "PLAYER") {
+                return this.map[x][y][i]
+            }
+        }
+        return false
+    }
 
     init() {
         this.GenateMap()
@@ -359,17 +519,28 @@ class Map { // todo: добавить синглтон
 }
 
 function GetRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return Math.floor(Math.random() * (max - min + 1)) + min
 }
+
+function shuffle(array) {
+    let currentIndex = array.length,  randomIndex
+    while (currentIndex != 0) {
+      randomIndex = Math.floor(Math.random() * currentIndex)
+      currentIndex--
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex], array[currentIndex]]
+    }
+    return array
+  }
 
 class Game {
     constructor(options) {
         this.map = new Map()
-        this.map.init()
         console.log(this.map)
     }
 
     init() {
+        this.map.init()
         const xy = this.map.GetRandomFreeCoord()
         this.player = new Player({
             x: xy[0],
