@@ -102,6 +102,15 @@ class Enemy {
         this.DelayAfterMoveToPlayer = 700
         this.DelayAfterRandomMove = 1500
     }
+    
+    set health(health) {
+        this._health = health
+        game.map.RerenderHealthBar(this.x, this.y, this.maxHealth, this._health)
+    }
+
+    get health() {
+        return this._health
+    }
 
     CanPassTo(x, y) {
         if (game.map.IsTileExist(x, y) &&
@@ -115,13 +124,14 @@ class Enemy {
     Unrender() {
         const enemyIndex = game.map.map[this.x][this.y].indexOf(this)
         game.map.map[this.x][this.y].splice(enemyIndex, 1)
-        game.map.ReRenderTile(this.x, this.y)
-
+        game.map.RerenderTile(this.x, this.y)
+        game.map.UnrenderHealthBar(this.x, this.y)
     }
 
     Render() {
         game.map.map[this.x][this.y].push(this)
-        game.map.ReRenderTile(this.x, this.y)
+        game.map.RerenderTile(this.x, this.y)
+        game.map.RenderHealthBar(this.x, this.y, this.maxHealth, this.health)
     }
 
     MoveTo(x, y) {
@@ -143,8 +153,9 @@ class Enemy {
                 break
             }
         }
-
-        this.MoveTo(moveTo[moveIndex][0], moveTo[moveIndex][1])
+        if (moveIndex != 4) {
+            this.MoveTo(moveTo[moveIndex][0], moveTo[moveIndex][1])
+        }
     }
 
     AtackPlayers(players) {
@@ -191,7 +202,7 @@ class Enemy {
                 this.AtackPlayers(players)
                 this.DelayTillAction(this.DelayAfterAtack)
             } else {
-                players = this.PlayersInRange(5) 
+                players = this.PlayersInRange(4) 
                 if (players.length != 0) {
                     console.log("Враг видит героя")
                     this.DelayTillAction(this.DelayAfterMoveToPlayer)
@@ -211,6 +222,8 @@ class Enemy {
     }
 
     init() {
+        this._health = this.maxHealth
+        this.Render() // todo: мяу
         this.DelayTillAction(1000)
     }
 }
@@ -219,7 +232,6 @@ class Enemy_E extends Enemy {
     constructor(options) {
         super(options)
         this.maxHealth = 100
-        this.health = 100
         this.damage = 30
         this.tile = "tileE"
     }
@@ -230,7 +242,6 @@ class Player {
         this.x = options.x
         this.y = options.y
         this.maxHealth = 100
-        this.health = 100
         this.damage = 25
         this.type = "PLAYER"
         this.tile = "tileP"
@@ -241,6 +252,15 @@ class Player {
             "KeyD": false,
             "Space": false,
         }
+    }
+
+    set health(health) {
+        this._health = health
+        game.map.RerenderHealthBar(this.x, this.y, this.maxHealth, this._health)
+    }
+
+    get health() {
+        return this._health
     }
 
     AtackAround() {
@@ -266,6 +286,7 @@ class Player {
     GetDamage(damage) {
         this.health -= damage
         console.log(`Player got ${damage} damage. Current health is ${this.health}`)
+        
         this.DieIfNoHealth()
     }
 
@@ -286,13 +307,15 @@ class Player {
 
     Render() { // todo: добавить хп бары
         game.map.map[this.x][this.y].push(this)
-        game.map.ReRenderTile(this.x, this.y)
+        game.map.RerenderTile(this.x, this.y)
+        game.map.RenderHealthBar(this.x, this.y, this.maxHealth, this.health)
     }
 
     Unrender() {
         const playerIndex = game.map.map[this.x][this.y].indexOf(this)
         game.map.map[this.x][this.y].splice(playerIndex, 1)
-        game.map.ReRenderTile(this.x, this.y)
+        game.map.RerenderTile(this.x, this.y)
+        game.map.UnrenderHealthBar(this.x, this.y)
     }
 
     CanPassTo(x, y) {
@@ -357,6 +380,7 @@ class Player {
     }
 
     init() {
+        this._health = this.maxHealth
         this.Render()
         this.UpKeypressEvents()
     }
@@ -376,8 +400,6 @@ class Map { // todo: добавить синглтон
         this.GenerateRandomRooms()
 
         this.GenerateItems()
-
-        this.GenerateEnemies()
     }
 
     GetRandomFreeCoord() {
@@ -426,12 +448,14 @@ class Map { // todo: добавить синглтон
     }
 
     GenerateEnemies() {
+        let enemies = []
         for (const [enemyName, enemyData] of Object.entries(this.config.enemies)) {
             for (let i = 0; i < enemyData.amount; i++) {
                 const xy = this.GetRandomFreeCoord()
-                this.SetEnemy(enemyName, xy[0], xy[1])
+                enemies.push(this.SetEnemy(enemyName, xy[0], xy[1]))
             }
         }
+        return enemies
     }
 
     SetEnemy(enemyName, x, y) {
@@ -441,9 +465,9 @@ class Map { // todo: добавить синглтон
         }
 
         const enemy = GetNewEnemy(enemyName, options)
-        this.map[x][y].push(enemy)
         enemy.init()
         console.log(`Enemy ${enemyName} placed at x = ${x}, y = ${y}`)
+        return enemy
     }
 
     GenerateHorizontalTunnel() {
@@ -521,10 +545,27 @@ class Map { // todo: добавить синглтон
     RemoveFromTile(x, y, i) {
         delete this.map[x][y][i] // todo: узнать, как работает сборщик мусора в js
         this.map[x][y].splice(i, 1)
-        this.ReRenderTile(x, y)
+        this.RerenderTile(x, y)
     }
 
-    ReRenderTile(x, y) {
+    UnrenderHealthBar(x, y) {
+        let tile = this.field.children[x].children[y]
+        tile.children[0].remove()
+    }
+
+    RerenderHealthBar(x, y, maxHealth, health) {
+        this.field.children[x].children[y].children[0].setAttribute("style",`width:${100 * (health / maxHealth)}%`)
+    }
+
+    RenderHealthBar(x, y, maxHealth, health) {
+        let tile = this.field.children[x].children[y]
+        let healthBar = document.createElement("div")
+        healthBar.className = "health"
+        healthBar.style.width = (100 * (health / maxHealth) + "%")
+        tile.appendChild(healthBar)
+    }
+
+    RerenderTile(x, y) {
         let tile = this.field.children[x].children[y]
         tile.className = this.GetClassName(x, y)
     }
@@ -626,6 +667,7 @@ class Game {
             y: xy[1],
         })
         this.player.init()
+        this.enemies = this.map.GenerateEnemies()
         console.log(this.player)
     }
 }
