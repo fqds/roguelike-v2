@@ -36,7 +36,7 @@ const config = {
     },
 }
 
-function GetNewItem(itemName) { // todo: сделать лучше
+function GetNewItem(itemName) {
     switch (itemName) {
     case "SW": return new Item_SW()
     case "HP": return new Item_HP()
@@ -102,7 +102,7 @@ class Enemy {
         return this._health
     }
 
-    CanPassTo(x, y) {
+    _canPassTo(x, y) {
         if (game.map.IsTileExist(x, y) &&
             !game.map.IsTileOnlyWall(x, y) &&
             !game.map.GetEnemyOnTyle(x, y)) {
@@ -111,44 +111,44 @@ class Enemy {
         return false
     }
 
-    Unrender() {
+    _unrender() {
         const enemyIndex = game.map.map[this.x][this.y].indexOf(this)
         game.map.map[this.x][this.y].splice(enemyIndex, 1)
         game.map.RerenderTile(this.x, this.y)
         game.map.UnrenderHealthBar(this.x, this.y)
     }
 
-    Render() {
+    _render() {
         game.map.map[this.x][this.y].push(this)
         game.map.RerenderTile(this.x, this.y)
         game.map.RenderHealthBar(this.x, this.y, this.maxHealth, this.health)
     }
 
-    MoveTo(x, y) {
-        this.Unrender()
+    _moveTo(x, y) {
+        this._unrender()
         this.x = x
         this.y = y
-        this.Render()
+        this._render()
     }
 
-    RandomMove() {
-        let moveTo = shuffle([[this.x, this.y - 1],
+    _randomMove() {
+        let moveTo = Shuffle([[this.x, this.y - 1],
                               [this.x - 1, this.y],
                               [this.x, this.y + 1],
                               [this.x + 1, this.y]])
 
         let moveIndex = 0
         for (; moveIndex < 4; moveIndex++) {
-            if (this.CanPassTo(moveTo[moveIndex][0], moveTo[moveIndex][1])) {
+            if (this._canPassTo(moveTo[moveIndex][0], moveTo[moveIndex][1])) {
                 break
             }
         }
         if (moveIndex != 4) {
-            this.MoveTo(moveTo[moveIndex][0], moveTo[moveIndex][1])
+            this._moveTo(moveTo[moveIndex][0], moveTo[moveIndex][1])
         }
     }
 
-    AtackPlayers(players) {
+    _atackPlayers(players) {
         for (let i = 0; i < players.length; i++) {
             players[i].GetDamage(this.damage)
         }
@@ -157,22 +157,22 @@ class Enemy {
     GetDamage(damage) {
         this.health -= damage
         console.log(`Enemy got ${damage} damage. Current health is ${this.health}`)
-        this.DieIfNoHealth()
+        this._dieIfNoHealth()
     }
 
-    IsDead() {
+    _isDead() {
         if (this.health <= 0) { return true } 
         return false
     }
 
-    DieIfNoHealth() {
-        if (this.IsDead()) {
-            this.Unrender()
+    _dieIfNoHealth() {
+        if (this._isDead()) {
+            this._unrender()
             delete this
         }
     }
 
-    PlayersInRange(range) {
+    _playersInRange(range) {
         let players = []
         for (let x = this.x - range; x <= this.x + range; x++) {
             for (let y = this.y - range; y <= this.y + range; y++) {
@@ -185,35 +185,36 @@ class Enemy {
         return players
     }
 
-    Action() {
-        if (!this.IsDead()) {
-            let players = this.PlayersInRange(1)    
+    _action() {
+        if (!this._isDead()) {
+            let players = this._playersInRange(1)    
             if (players.length != 0) {
-                this.AtackPlayers(players)
+                this._atackPlayers(players)
                 this.DelayTillAction(this.DelayAfterAtack)
-            } else {
-                players = this.PlayersInRange(4) 
-                if (players.length != 0) {
-                    console.log("Враг видит героя")
-                    this.DelayTillAction(this.DelayAfterMoveToPlayer)
-                }
-                else {
-                    this.RandomMove()
+            }
+            else {
+                // players = this._playersInRange(4) 
+                // if (players.length != 0) {
+                //     console.log("Враг видит героя")
+                //     this.DelayTillAction(this.DelayAfterMoveToPlayer)
+                // }
+                // else {
+                    this._randomMove()
                     this.DelayTillAction(this.DelayAfterRandomMove)
-                }
+                // }
             }
         }
     }
 
     DelayTillAction(ms) {
         return new Promise(r => setTimeout(() => r(), ms)).then(() => {
-            this.Action()
+            this._action()
         })
     }
 
     init() {
         this._health = this.maxHealth
-        this.Render() // todo: мяу
+        this._render()
         this.DelayTillAction(1000)
     }
 }
@@ -234,7 +235,7 @@ class Player {
         this.maxHealth = 100
         this.damage = 25
         this.tile = "tileP"
-        this.keyDown = {
+        this._keyDown = {
             "KeyW": false,
             "KeyA": false,
             "KeyS": false,
@@ -252,14 +253,27 @@ class Player {
         return this._health
     }
 
-    AtackAround() {
-        let enemies = this.GetEnemiesAround()
+    IncreaceDamage(damage) { this.damage += damage }
+
+    IncreaceHealth(health) {
+        this.health += health
+        if (this.health > this.maxHealth) { this.health = this.maxHealth }
+    }
+
+    GetDamage(damage) {
+        this.health -= damage
+        console.log(`Player got ${damage} damage. Current health is ${this.health}`)
+        this._dieIfNoHealth()
+    }
+
+    _atackAround() {
+        let enemies = this._getEnemiesAround()
         for (let i = 0; i < enemies.length; i++) {
             enemies[i].GetDamage(this.damage)
         }
     }
 
-    GetEnemiesAround() {
+    _getEnemiesAround() {
         let enemies = []
         for (let x = this.x - 1; x <= this.x + 1; x++) {
             for (let y = this.y - 1; y <= this.y + 1; y++) {
@@ -272,42 +286,28 @@ class Player {
         return enemies
     }
 
-    GetDamage(damage) {
-        this.health -= damage
-        console.log(`Player got ${damage} damage. Current health is ${this.health}`)
-        
-        this.DieIfNoHealth()
-    }
-
-    DieIfNoHealth() {
+    _dieIfNoHealth() {
         if (this.health <= 0) {
-            this.Unrender()
-            this.DownKeypressEvents()
+            this._unrender()
+            this._downKeypressEvents()
             delete this
         }
     }
 
-    IncreaceDamage(damage) { this.damage += damage }
-
-    IncreaceHealth(health) {
-        this.health += health
-        if (this.health > this.maxHealth) { this.health = this.maxHealth }
-    }
-
-    Render() { // todo: добавить хп бары
+    _render() {
         game.map.map[this.x][this.y].push(this)
         game.map.RerenderTile(this.x, this.y)
         game.map.RenderHealthBar(this.x, this.y, this.maxHealth, this.health)
     }
 
-    Unrender() {
+    _unrender() {
         const playerIndex = game.map.map[this.x][this.y].indexOf(this)
         game.map.map[this.x][this.y].splice(playerIndex, 1)
         game.map.RerenderTile(this.x, this.y)
         game.map.UnrenderHealthBar(this.x, this.y)
     }
 
-    CanPassTo(x, y) {
+    _canPassTo(x, y) {
         if (game.map.IsTileExist(x, y) &&
             !game.map.IsTileOnlyWall(x, y) &&
             !game.map.GetEnemyOnTyle(x, y)) {
@@ -316,79 +316,81 @@ class Player {
         return false
     }
 
-    MoveByVector(xVector, yVector) {
+    _moveByVector(xVector, yVector) {
         const x = this.x + xVector
         const y = this.y + yVector
-        if (this.CanPassTo(x, y)) {
-            this.Unrender()
+        if (this._canPassTo(x, y)) {
+            this._unrender()
             this.x = x
             this.y = y
-            this.Render()
+            this._render()
             console.log(`player moved to x = ${x}, y = ${y}`)
         }
-        this.UseItemOnTile()
+        this._useItemOnTile()
     }
 
-    UseItemOnTile() {
-        for (let i = 0; i < game.map.map[this.x][this.y].length; i++) { // todo: заменить на while
+    _useItemOnTile() {
+        let i = 0
+        while (i < game.map.map[this.x][this.y].length) {   
             if (game.map.map[this.x][this.y][i] instanceof Item) {
                 game.map.map[this.x][this.y][i].Use(this)
                 game.map.RemoveFromTile(this.x, this.y, i)
             }
+            i++
         }
     }
 
-    keydownEvents = (event) => (this.KeydownEvents(event))
-    keyupEvents = (event) => (this.KeyupEvents(event))
+    _keydownEvents = (event) => (this._keydownEvent(event))
+    _keyupEvents = (event) => (this._keyupEvent(event))
 
-    UpKeypressEvents() {
-        document.addEventListener("keydown", this.keydownEvents)
-        document.addEventListener("keyup", this.keyupEvents)
-    }
-
-    DownKeypressEvents() {
-        document.removeEventListener("keydown", this.keydownEvents)
-        document.removeEventListener("keyup", this.keyupEvents)
-    }
-
-    KeydownEvents(event) {
-        if (this.keyDown[event.code] == false) {
-            this.keyDown[event.code] = true
+    _keydownEvent(event) {
+        if (this._keyDown[event.code] == false) {
+            this._keyDown[event.code] = true
             switch(event.code) {
-            case "KeyW": this.MoveByVector(0, -1); break
-            case "KeyA": this.MoveByVector(-1, 0); break
-            case "KeyS": this.MoveByVector(0, 1); break
-            case "KeyD": this.MoveByVector(1, 0); break
-            case "Space": this.AtackAround(); break
+            case "KeyW": this._moveByVector(0, -1); break
+            case "KeyA": this._moveByVector(-1, 0); break
+            case "KeyS": this._moveByVector(0, 1); break
+            case "KeyD": this._moveByVector(1, 0); break
+            case "Space": this._atackAround(); break
             }
         }
     }
 
-    KeyupEvents(event) {
-        this.keyDown[event.code] = false
+    _keyupEvent(event) {
+        this._keyDown[event.code] = false
+    }
+
+    _upKeypressEvents() {
+        document.addEventListener("keydown", this._keydownEvents)
+        document.addEventListener("keyup", this._keyupEvents)
+    }
+
+    _downKeypressEvents() {
+        document.removeEventListener("keydown", this._keydownEvents)
+        document.removeEventListener("keyup", this._keyupEvents)
     }
 
     init() {
         this._health = this.maxHealth
-        this.Render()
-        this.UpKeypressEvents()
+        this._render()
+        this._upKeypressEvents()
     }
 }
 
-class Map { // todo: добавить синглтон
+class Map { // todo: впихнуть синглтон
     constructor(options) {
         this.config = config.field
         this.field = document.getElementsByClassName("field-box")[0]
     }
 
-    GenateMap() { // todo: Разделить методы на приватные и публичные, поработать над конвенцией
+    GenateMap() {
         this.map = Array.from({length: this.config.width}, () => Array.from({length: this.config.height}, () => [new Wall()])) // todo: Сделать эту строку красивее
 
-        this.GenerateTunnels()
+        this._generateTunnels()
 
-        this.GenerateRandomRooms()
+        this._generateRandomRooms()
 
-        this.GenerateItems()
+        this._generateItems()
     }
 
     GetRandomFreeCoord() {
@@ -405,32 +407,32 @@ class Map { // todo: добавить синглтон
         // a, b = GetAB()
     }
 
-    GenerateTunnels() {
+    _generateTunnels() {
         for (let i = 0; i < GetRandomInt(
             this.config.tunnels.horizontal.minAmount, 
             this.config.tunnels.horizontal.maxAmount
         ); i++) {
-            this.GenerateHorizontalTunnel()
+            this._generateHorizontalTunnel()
         }
 
         for (let i = 0; i < GetRandomInt(
             this.config.tunnels.vertical.minAmount, 
             this.config.tunnels.vertical.maxAmount
         ); i++) {
-            this.GenerateVerticalTunnel()
+            this._generateVerticalTunnel()
         }
     }
 
-    GenerateItems() {
+    _generateItems() {
         for (const [itemName, itemData] of Object.entries(this.config.items)) {
             for (let i = 0; i < itemData.amount; i++) {
                 const xy = this.GetRandomFreeCoord()
-                this.SetItem(itemName, xy[0], xy[1])
+                this._setItem(itemName, xy[0], xy[1])
             }
         }
     }
 
-    SetItem(itemName, x, y) {
+    _setItem(itemName, x, y) {
         const item = GetNewItem(itemName)
         this.map[x][y].push(item)
         console.log(`Item ${itemName} placed at x = ${x}, y = ${y}`)
@@ -459,32 +461,32 @@ class Map { // todo: добавить синглтон
         return enemy
     }
 
-    GenerateHorizontalTunnel() {
+    _generateHorizontalTunnel() {
         const x = GetRandomInt(0, this.config.width - 1)
         for (let y = 0; y < this.config.height; y++) {
-            this.ClearTile(x, y)
+            this._clearTileBeforeRender(x, y)
         }
         console.log("built horizontal tunnel with x =", x)
     }
 
-    GenerateVerticalTunnel() {
+    _generateVerticalTunnel() {
         const y = GetRandomInt(0, this.config.height - 1)
         for (let x = 0; x < this.config.width; x++) {
-            this.ClearTile(x, y)
+            this._clearTileBeforeRender(x, y)
         }
         console.log("built vertical tunnel with y =", y)
     }
 
-    GenerateRandomRooms() {
+    _generateRandomRooms() {
         for (let i = 0; i < GetRandomInt(
             this.config.rooms.minAmount,
             this.config.rooms.maxAmount
         ); i++) {
-            this.GenerateRandomRoom()
+            this._generateRandomRoom()
         }
     }
     
-    GenerateRandomRoom() {
+    _generateRandomRoom() {
         let width = 0
         let height = 0
         let xOffset = 0
@@ -496,12 +498,12 @@ class Map { // todo: добавить синглтон
                                         this.config.rooms.maxHeight)
             xOffset = GetRandomInt(0, this.config.width - width)
             yOffset = GetRandomInt(0, this.config.height - height)
-            if (this. IsRoomConnected(xOffset, yOffset, width, height)) { break }
+            if (this. _isRoomConnected(xOffset, yOffset, width, height)) { break }
         }
-        this.SetRoom(xOffset, yOffset, width, height)
+        this._setRoom(xOffset, yOffset, width, height)
     }
 
-    IsRoomConnected(xOffset, yOffset, width, height) {
+    _isRoomConnected(xOffset, yOffset, width, height) {
         for (let x = xOffset; x < xOffset + width; x++) {
             if ((this.IsTileExist(x, yOffset - 1) && 
                 !this.IsTileOnlyWall(x, yOffset - 1)) ||
@@ -523,12 +525,16 @@ class Map { // todo: добавить синглтон
         return false
     }
 
-    SetRoom(xOffset, yOffset, width, height) {
+    _setRoom(xOffset, yOffset, width, height) {
         for (let x = xOffset; x < xOffset + width; x++) {
-            for (let y = yOffset; y < yOffset + height; y++) { this.map[x][y] = [] }
+            for (let y = yOffset; y < yOffset + height; y++) { this._clearTileBeforeRender(x, y) }
         }
         console.log(`built room with x = ${xOffset}, y = ${yOffset}, width = ${width}, height = ${height}`)
 
+    }
+
+    _clearTileBeforeRender(x, y) {
+        this.map[x][y] = []
     }
 
     RemoveFromTile(x, y, i) {
@@ -556,10 +562,10 @@ class Map { // todo: добавить синглтон
 
     RerenderTile(x, y) {
         let tile = this.field.children[x].children[y]
-        tile.className = this.GetClassName(x, y)
+        tile.className = this._getClassName(x, y)
     }
 
-    GetClassName(x, y) {
+    _getClassName(x, y) {
         let className = "tile"
         for (let i = 0; i < this.map[x][y].length; i++) {
             className += " " + this.map[x][y][i].tile
@@ -567,7 +573,7 @@ class Map { // todo: добавить синглтон
         return className
     }
     
-    RenderMap() {
+    _renderMap() {
         for (let x = 0; x < this.config.width; x++) {
             let newColumn = document.createElement("div")
             newColumn.className = "field"
@@ -575,14 +581,10 @@ class Map { // todo: добавить синглтон
 
             for (let y = 0; y < this.config.height; y++) {
                 let newTile = document.createElement("div") 
-                newTile.className = this.GetClassName(x, y)
+                newTile.className = this._getClassName(x, y)
                 this.field.lastChild.appendChild(newTile)
             }
         }
-    }
-
-    ClearTile(x, y) {
-        this.map[x][y] = []
     }
 
     IsTileExist(x, y) { 
@@ -592,8 +594,6 @@ class Map { // todo: добавить синглтон
         }
         return false
     }
-
-    IsTileEmpty(x, y) { if (this.map[x][y].length == 0) { return true } return false }
 
     IsTileOnlyWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0] instanceof Wall) { return true } return false }
 
@@ -623,7 +623,7 @@ class Map { // todo: добавить синглтон
 
     init() {
         this.GenateMap()
-        this.RenderMap()
+        this._renderMap()
     }
 }
 
@@ -631,8 +631,8 @@ function GetRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-function shuffle(array) {
-    let currentIndex = array.length,  randomIndex
+function Shuffle(array) {
+    let currentIndex = array.length, randomIndex
     while (currentIndex != 0) {
       randomIndex = Math.floor(Math.random() * currentIndex)
       currentIndex--
