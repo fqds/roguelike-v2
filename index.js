@@ -192,7 +192,7 @@ class Enemy {
                 this._atackPlayers(players)
                 this.DelayTillAction(this.DelayAfterAtack)
             }
-            else {
+            else { // todo: реализовать преследование игрока по кратчайшему пути, если тот находится в радиусе зрения
                 // players = this._playersInRange(4) 
                 // if (players.length != 0) {
                 //     console.log("Враг видит героя")
