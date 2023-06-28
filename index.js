@@ -53,18 +53,12 @@ function GetNewEnemy(enemyName, options) {
 
 class Item {
     constructor(options) {
-        this.type = "ITEM"
-    }
-
-    Use() {
-        console.log("Used empty item")
     }
 }
 
 class Item_SW extends Item {
     constructor(options) {
         super(options)
-        this.name = "SW"
         this.tile = "tileSW"
     }
 
@@ -76,7 +70,6 @@ class Item_SW extends Item {
 class Item_HP extends Item {
     constructor(options) {
         super(options)
-        this.name = "HP"
         this.tile = "tileHP"
     }	
     
@@ -87,15 +80,12 @@ class Item_HP extends Item {
 
 class Wall {
     constructor(options) {
-        this.type = "WALL"
-        this.name = "W"
         this.tile = "tileW"
     }
 }
 
 class Enemy {
     constructor(options) {
-        this.type = "ENEMY"
         this.x = options.x
         this.y = options.y
         this.DelayAfterAtack = 1000
@@ -243,7 +233,6 @@ class Player {
         this.y = options.y
         this.maxHealth = 100
         this.damage = 25
-        this.type = "PLAYER"
         this.tile = "tileP"
         this.keyDown = {
             "KeyW": false,
@@ -342,7 +331,7 @@ class Player {
 
     UseItemOnTile() {
         for (let i = 0; i < game.map.map[this.x][this.y].length; i++) { // todo: заменить на while
-            if (game.map.map[this.x][this.y][i].type == "ITEM") {
+            if (game.map.map[this.x][this.y][i] instanceof Item) {
                 game.map.map[this.x][this.y][i].Use(this)
                 game.map.RemoveFromTile(this.x, this.y, i)
             }
@@ -606,14 +595,14 @@ class Map { // todo: добавить синглтон
 
     IsTileEmpty(x, y) { if (this.map[x][y].length == 0) { return true } return false }
 
-    IsTileOnlyWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0].type == "WALL") { return true } return false }
+    IsTileOnlyWall(x, y) { if (this.map[x][y].length == 1 && this.map[x][y][0] instanceof Wall) { return true } return false }
 
     GetEnemyOnTyle(x, y) {
         if (!this.IsTileExist(x, y)) {
             return false
         }
         for (let i = 0; i < this.map[x][y].length; i++) {
-            if (this.map[x][y][i].type == "ENEMY") {
+            if (this.map[x][y][i] instanceof Enemy) {
                 return this.map[x][y][i]
             }
         }
@@ -625,7 +614,7 @@ class Map { // todo: добавить синглтон
             return false
         }
         for (let i = 0; i < this.map[x][y].length; i++) {
-            if (this.map[x][y][i].type == "PLAYER") {
+            if (this.map[x][y][i] instanceof Player) {
                 return this.map[x][y][i]
             }
         }
