@@ -49,10 +49,16 @@ function GetNewEnemy(enemyName, options) {
     }
 }
 
+class Tile {
+    constructor(options = {}) {
+        this.x = options.x
+        this.y = options.y
+    }
+}
 
-
-class Item {
+class Item extends Tile{
     constructor(options) {
+        super(options)
     }
 }
 
@@ -78,16 +84,16 @@ class Item_HP extends Item {
     }
 }
 
-class Wall {
+class Wall extends Tile {
     constructor(options) {
+        super(options)
         this.tile = "tileW"
     }
 }
 
-class Enemy {
+class Enemy extends Tile {
     constructor(options) {
-        this.x = options.x
-        this.y = options.y
+        super(options)
         this.DelayAfterAtack = 1000
         this.DelayAfterMoveToPlayer = 700
         this.DelayAfterRandomMove = 1500
@@ -228,10 +234,9 @@ class Enemy_E extends Enemy {
     }
 }
 
-class Player {
+class Player extends Tile {
     constructor(options) {
-        this.x = options.x
-        this.y = options.y
+        super(options)
         this.maxHealth = 100
         this.damage = 25
         this.tile = "tileP"
