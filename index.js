@@ -54,11 +54,30 @@ class Tile {
         this.x = options.x
         this.y = options.y
     }
+
+    _moveTo(x, y) {
+        this._unrender()
+        this.x = x
+        this.y = y
+        this._render()
+    }
+
+    _unrender() {
+        const enemyIndex = game.map.map[this.x][this.y].indexOf(this)
+        game.map.map[this.x][this.y].splice(enemyIndex, 1)
+        game.map.RerenderTile(this.x, this.y)
+        game.map.UnrenderHealthBar(this.x, this.y)
+    }
+
+    _render() {
+        game.map.map[this.x][this.y].push(this)
+        game.map.RerenderTile(this.x, this.y)
+        game.map.RenderHealthBar(this.x, this.y, this.maxHealth, this.health)
+    }
 }
 
-class Item extends Tile{
+class Item {
     constructor(options) {
-        super(options)
     }
 }
 
@@ -84,9 +103,8 @@ class Item_HP extends Item {
     }
 }
 
-class Wall extends Tile {
+class Wall {
     constructor(options) {
-        super(options)
         this.tile = "tileW"
     }
 }
@@ -115,26 +133,6 @@ class Enemy extends Tile {
             return true
         }
         return false
-    }
-
-    _unrender() {
-        const enemyIndex = game.map.map[this.x][this.y].indexOf(this)
-        game.map.map[this.x][this.y].splice(enemyIndex, 1)
-        game.map.RerenderTile(this.x, this.y)
-        game.map.UnrenderHealthBar(this.x, this.y)
-    }
-
-    _render() {
-        game.map.map[this.x][this.y].push(this)
-        game.map.RerenderTile(this.x, this.y)
-        game.map.RenderHealthBar(this.x, this.y, this.maxHealth, this.health)
-    }
-
-    _moveTo(x, y) {
-        this._unrender()
-        this.x = x
-        this.y = y
-        this._render()
     }
 
     _randomMove() {
@@ -299,19 +297,6 @@ class Player extends Tile {
         }
     }
 
-    _render() {
-        game.map.map[this.x][this.y].push(this)
-        game.map.RerenderTile(this.x, this.y)
-        game.map.RenderHealthBar(this.x, this.y, this.maxHealth, this.health)
-    }
-
-    _unrender() {
-        const playerIndex = game.map.map[this.x][this.y].indexOf(this)
-        game.map.map[this.x][this.y].splice(playerIndex, 1)
-        game.map.RerenderTile(this.x, this.y)
-        game.map.UnrenderHealthBar(this.x, this.y)
-    }
-
     _canPassTo(x, y) {
         if (game.map.IsTileExist(x, y) &&
             !game.map.IsTileOnlyWall(x, y) &&
@@ -325,10 +310,7 @@ class Player extends Tile {
         const x = this.x + xVector
         const y = this.y + yVector
         if (this._canPassTo(x, y)) {
-            this._unrender()
-            this.x = x
-            this.y = y
-            this._render()
+            this._moveTo(x, y)
             console.log(`player moved to x = ${x}, y = ${y}`)
         }
         this._useItemOnTile()
